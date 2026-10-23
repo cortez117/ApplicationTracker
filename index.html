@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Job Hunt Tracker</title>
+  <script>
+    // Apply saved (or system) theme before first paint to avoid a flash
+    (function () {
+      var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      try { var t = localStorage.getItem("theme"); if (t) dark = t === "dark"; } catch (_) {}
+      document.documentElement.classList.toggle("dark", dark);
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: "class" };</script>
+  <style>html.dark { color-scheme: dark; }</style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 min-h-screen">
+  <div class="max-w-6xl mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">Job Hunt Tracker</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Keep every application, interview and offer in one place.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false" title="Toggle dark mode"
+          class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+          <!-- crescent moon -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5" aria-hidden="true">
+            <path d="M21.752 15.002A9.718 9.718 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/>
+          </svg>
+        </button>
+        <button id="addBtn" class="inline-flex items-center justify-center gap-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+          <span class="text-lg leading-none">+</span> Add application
+        </button>
+      </div>
+    </header>
+
+    <!-- Stats / filters -->
+    <section id="stats" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6"></section>
+
+    <!-- Search -->
+    <div class="mb-4">
+      <input id="search" type="search" placeholder="Search company, title or notes…"
+        class="w-full sm:w-80 rounded-lg border dark:text-slate-100 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+    </div>
+
+    <div id="error" class="hidden mb-4 rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 px-4 py-2 text-sm text-red-700 dark:text-red-300"></div>
+
+    <!-- Table (md and up) -->
+    <div class="hidden md:block overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
+      <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+        <thead class="bg-slate-50 dark:bg-slate-700/50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <tr>
+            <th class="px-4 py-3">Company</th>
+            <th class="px-4 py-3">Position</th>
+            <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3">Applied</th>
+            <th class="px-4 py-3">Salary</th>
+            <th class="px-4 py-3">Notes</th>
+            <th class="px-4 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody" class="divide-y divide-slate-100 dark:divide-slate-700"></tbody>
+      </table>
+    </div>
+
+    <!-- Cards (mobile) -->
+    <div id="cardGrid" class="md:hidden grid gap-3"></div>
+
+    <p id="empty" class="hidden text-center text-slate-500 dark:text-slate-400 py-16">No applications yet. Click “Add application” to get started.</p>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+    <form id="form" class="w-full max-w-lg rounded-xl bg-white dark:bg-slate-800 p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+      <h2 id="modalTitle" class="text-lg font-semibold mb-4">Add application</h2>
+      <input type="hidden" id="f-id" />
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <label class="block text-sm font-medium">Company *
+          <input id="f-company" required class="mt-1 w-full rounded-lg border dark:bg-slate-700 dark:text-slate-100 border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-normal focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+        </label>
+        <label class="block text-sm font-medium">Position title *
+          <input id="f-title" required class="mt-1 w-full rounded-lg border dark:bg-slate-700 dark:text-slate-100 border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-normal focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+        </label>
+        <label class="block text-sm font-medium">Status
+          <select id="f-status" class="mt-1 w-full rounded-lg border dark:bg-slate-700 dark:text-slate-100 border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-normal focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            <option>Applied</option><option>Interviewing</option><option>Offer</option><option>Rejected</option>
+          </select>
+        </label>
+        <label class="block text-sm font-medium">Date applied
+          <input id="f-date" type="date" class="mt-1 w-full rounded-lg border dark:bg-slate-700 dark:text-slate-100 border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-normal focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+        </label>
+        <label class="block text-sm font-medium sm:col-span-2">Salary range
+          <input id="f-salary" placeholder="e.g. $90k – $110k" class="mt-1 w-full rounded-lg border dark:bg-slate-700 dark:text-slate-100 border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-normal focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+        </label>
+        <label class="block text-sm font-medium sm:col-span-2">Notes
+          <textarea id="f-notes" rows="3" class="mt-1 w-full rounded-lg border dark:bg-slate-700 dark:text-slate-100 border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-normal focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
+        </label>
+      </div>
+      <div class="mt-6 flex justify-end gap-2">
+        <button type="button" id="cancelBtn" class="rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/40">Cancel</button>
+        <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Save</button>
+      </div>
+    </form>
+  </div>
+
+<script>
+  const API = "/api/applications";
+  const STATUSES = ["Applied", "Interviewing", "Offer", "Rejected"];
+  const BADGE = {
+    Applied:      "bg-blue-100 text-blue-800 ring-blue-200",
+    Interviewing: "bg-amber-100 text-amber-800 ring-amber-200",
+    Offer:        "bg-green-100 text-green-800 ring-green-200",
+    Rejected:     "bg-red-100 text-red-800 ring-red-200",
+  };
+  const STAT_COLOR = {
+    All: "text-slate-700", Applied: "text-blue-700", Interviewing: "text-amber-700",
+    Offer: "text-green-700", Rejected: "text-red-700 dark:text-red-300",
+  };
+
+  let apps = [];
+  let filter = "All";
+  let query = "";
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function showError(msg) {
+    const el = $("error");
+    el.textContent = msg;
+    el.classList.toggle("hidden", !msg);
+  }
+
+  async function api(url, options = {}) {
+    try {
+      const res = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const detail = Array.isArray(body.detail) ? body.detail.map((d) => d.msg).join(", ") : body.detail;
+        throw new Error(detail || `Request failed (${res.status})`);
+      }
+      showError("");
+      return res.json();
+    } catch (err) {
+      showError(err.message || "Could not reach the server.");
+      throw err;
+    }
+  }
+
+  async function load() {
+    try {
+      apps = await api(API);
+    } catch (_) { /* error already shown */ }
+    render();
+  }
+
+  function statusSelect(a) {
+    const opts = STATUSES.map((s) => `<option ${s === a.status ? "selected" : ""}>${s}</option>`).join("");
+    return `<select data-action="status" data-id="${a.id}"
+      class="rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset cursor-pointer focus:outline-none ${BADGE[a.status] || ""}">${opts}</select>`;
+  }
+
+  function actionButtons(a) {
+    return `<button data-action="edit" data-id="${a.id}" class="text-indigo-600 dark:text-indigo-400 hover:underline text-sm">Edit</button>
+            <button data-action="delete" data-id="${a.id}" class="ml-3 text-red-600 dark:text-red-400 hover:underline text-sm">Delete</button>`;
+  }
+
+  function render() {
+    // Stats double as filter buttons
+    const counts = { All: apps.length };
+    STATUSES.forEach((s) => (counts[s] = apps.filter((a) => a.status === s).length));
+    $("stats").innerHTML = ["All", ...STATUSES].map((s) => `
+      <button data-filter="${s}" class="rounded-xl border bg-white dark:bg-slate-800 p-3 text-left shadow-sm transition hover:shadow
+        ${filter === s ? "border-indigo-500 ring-1 ring-indigo-500" : "border-slate-200 dark:border-slate-700"}">
+        <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">${s}</div>
+        <div class="text-2xl font-bold ${STAT_COLOR[s]}">${counts[s]}</div>
+      </button>`).join("");
+
+    const q = query.trim().toLowerCase();
+    const visible = apps.filter((a) =>
+      (filter === "All" || a.status === filter) &&
+      (!q || [a.company_name, a.position_title, a.notes].some((v) => (v || "").toLowerCase().includes(q))));
+
+    $("empty").classList.toggle("hidden", visible.length > 0);
+    $("empty").textContent = apps.length
+      ? "No applications match your filter."
+      : "No applications yet. Click “Add application” to get started.";
+
+    $("tableBody").innerHTML = visible.map((a) => `
+      <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40 align-top">
+        <td class="px-4 py-3 font-medium">${esc(a.company_name)}</td>
+        <td class="px-4 py-3">${esc(a.position_title)}</td>
+        <td class="px-4 py-3">${statusSelect(a)}</td>
+        <td class="px-4 py-3 whitespace-nowrap">${esc(a.date_applied) || "—"}</td>
+        <td class="px-4 py-3 whitespace-nowrap">${esc(a.salary_range) || "—"}</td>
+        <td class="px-4 py-3 max-w-xs text-slate-600 dark:text-slate-300 break-words">${esc(a.notes)}</td>
+        <td class="px-4 py-3 text-right whitespace-nowrap">${actionButtons(a)}</td>
+      </tr>`).join("");
+
+    $("cardGrid").innerHTML = visible.map((a) => `
+      <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <div class="font-semibold">${esc(a.company_name)}</div>
+            <div class="text-sm text-slate-600 dark:text-slate-300">${esc(a.position_title)}</div>
+          </div>
+          ${statusSelect(a)}
+        </div>
+        <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">${esc(a.date_applied) || "No date"}${a.salary_range ? " · " + esc(a.salary_range) : ""}</div>
+        ${a.notes ? `<p class="mt-2 text-sm text-slate-600 dark:text-slate-300 break-words">${esc(a.notes)}</p>` : ""}
+        <div class="mt-3">${actionButtons(a)}</div>
+      </div>`).join("");
+  }
+
+  // ----- Modal -----
+  function openModal(a = null) {
+    $("modalTitle").textContent = a ? "Edit application" : "Add application";
+    $("f-id").value = a ? a.id : "";
+    $("f-company").value = a ? a.company_name : "";
+    $("f-title").value = a ? a.position_title : "";
+    $("f-status").value = a ? a.status : "Applied";
+    $("f-date").value = a ? a.date_applied || "" : new Date().toISOString().slice(0, 10);
+    $("f-salary").value = a ? a.salary_range || "" : "";
+    $("f-notes").value = a ? a.notes || "" : "";
+    $("modal").classList.remove("hidden");
+    $("f-company").focus();
+  }
+  const closeModal = () => $("modal").classList.add("hidden");
+
+  $("addBtn").addEventListener("click", () => openModal());
+  $("cancelBtn").addEventListener("click", closeModal);
+  $("modal").addEventListener("click", (e) => { if (e.target === $("modal")) closeModal(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+  $("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const id = $("f-id").value;
+    const payload = {
+      company_name: $("f-company").value.trim(),
+      position_title: $("f-title").value.trim(),
+      status: $("f-status").value,
+      date_applied: $("f-date").value || null,
+      salary_range: $("f-salary").value.trim() || null,
+      notes: $("f-notes").value.trim() || null,
+    };
+    try {
+      await api(id ? `${API}/${id}` : API, { method: id ? "PUT" : "POST", body: JSON.stringify(payload) });
+      closeModal();
+      await load();
+    } catch (_) { /* error already shown */ }
+  });
+
+  // ----- Table / card actions (event delegation) -----
+  document.addEventListener("click", async (e) => {
+    const filterBtn = e.target.closest("[data-filter]");
+    if (filterBtn) { filter = filterBtn.dataset.filter; render(); return; }
+
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    const id = Number(btn.dataset.id);
+    const a = apps.find((x) => x.id === id);
+    if (btn.dataset.action === "edit" && a) openModal(a);
+    if (btn.dataset.action === "delete" && a) {
+      if (!confirm(`Delete "${a.position_title}" at ${a.company_name}?`)) return;
+      try { await api(`${API}/${id}`, { method: "DELETE" }); await load(); } catch (_) {}
+    }
+  });
+
+  document.addEventListener("change", async (e) => {
+    const sel = e.target.closest("select[data-action='status']");
+    if (!sel) return;
+    try {
+      await api(`${API}/${sel.dataset.id}`, { method: "PUT", body: JSON.stringify({ status: sel.value }) });
+    } catch (_) { /* fall through to reload to restore real state */ }
+    await load();
+  });
+
+  $("search").addEventListener("input", (e) => { query = e.target.value; render(); });
+
+  // ----- Dark mode toggle -----
+  function syncThemeButton() {
+    $("themeToggle").setAttribute("aria-pressed", String(document.documentElement.classList.contains("dark")));
+  }
+  $("themeToggle").addEventListener("click", () => {
+    const dark = document.documentElement.classList.toggle("dark");
+    try { localStorage.setItem("theme", dark ? "dark" : "light"); } catch (_) {}
+    syncThemeButton();
+  });
+  syncThemeButton();
+
+  load();
+</script>
+</body>
+</html>

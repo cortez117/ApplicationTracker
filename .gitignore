@@ -1,0 +1,14 @@
+# Local database (your personal application data)
+job_tracker.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
